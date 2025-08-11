@@ -1,0 +1,160 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2575.6">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  </style>
+</head>
+<body>
+<p class="p1">&lt;!DOCTYPE html&gt;</p>
+<p class="p1">&lt;html&gt;</p>
+<p class="p1">&lt;head&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta charset="utf-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;title&gt;Meteora DLMM 深度分布工具&lt;/title&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"&gt;&lt;/script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;script type="importmap"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>{</p>
+<p class="p1"><span class="Apple-converted-space">      </span>"imports": {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>"@solana/web3.js": "https://cdn.jsdelivr.net/npm/@solana/web3.js@1.95.2/lib/index.iife.min.js",</p>
+<p class="p1"><span class="Apple-converted-space">        </span>"@meteora-ag/dlmm": "https://cdn.jsdelivr.net/npm/@meteora-ag/dlmm/dist/index.min.js"</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/script&gt;</p>
+<p class="p1">&lt;/head&gt;</p>
+<p class="p1">&lt;body style="font-family: sans-serif; padding: 10px;"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;h2&gt;Meteora DLMM 深度分布&lt;/h2&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;label&gt;Token Mint:</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;input id="mintInput" style="width:400px" placeholder="例如 USDC: EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;br&gt;&lt;br&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;label&gt;价格范围:</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;input id="minPrice" type="number" placeholder="最小价格" style="width:120px"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>-</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;input id="maxPrice" type="number" placeholder="最大价格" style="width:120px"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;br&gt;&lt;br&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;label&gt;最小流动性过滤:</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;input id="minLiquidity" type="number" placeholder="例如 100" style="width:120px"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/label&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;br&gt;&lt;br&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;button onclick="loadCharts()"&gt;加载数据&lt;/button&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;div id="depthChart" style="width:100%;height:400px;margin-top:20px;"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;div id="histChart" style="width:100%;height:400px;margin-top:20px;"&gt;&lt;/div&gt;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;script type="module"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>import { Connection, PublicKey } from "@solana/web3.js";</p>
+<p class="p1"><span class="Apple-converted-space">    </span>import DLMM from "@meteora-ag/dlmm";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>const connection = new Connection("https://api.mainnet-beta.solana.com");</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function getPoolsForToken(tokenMint) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const res = await fetch("https://dlmm-api.meteora.ag/pair/all");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const pools = await res.json();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>return pools.filter(p =&gt;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>p.tokenXMint === tokenMint || p.tokenYMint === tokenMint</p>
+<p class="p1"><span class="Apple-converted-space">      </span>);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function getBinsForPool(poolId, baseMint) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>try {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const poolPubkey = new PublicKey(poolId);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const dlmmPool = await DLMM.create(connection, poolPubkey);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const bins = await dlmmPool.getBins();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const isBaseX = dlmmPool.tokenXMint.toBase58() === baseMint;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>return bins.map(bin =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">          </span>const price = isBaseX ? bin.price : 1 / bin.price;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>return { price, liquidity: bin.liquidity };</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p1"><span class="Apple-converted-space">      </span>} catch (e) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>console.error(`Error in pool ${poolId}`, e);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>return [];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>async function getAggregatedDepth(tokenMint) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const pools = await getPoolsForToken(tokenMint);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let allBins = [];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>for (const pool of pools) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const bins = await getBinsForPool(pool.id, tokenMint);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>allBins = allBins.concat(bins);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const merged = {};</p>
+<p class="p1"><span class="Apple-converted-space">      </span>allBins.forEach(({ price, liquidity }) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const pKey = price.toFixed(6);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>merged[pKey] = (merged[pKey] || 0) + liquidity;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const depthData = Object.entries(merged).map(([price, liquidity]) =&gt; ({</p>
+<p class="p1"><span class="Apple-converted-space">        </span>price: parseFloat(price),</p>
+<p class="p1"><span class="Apple-converted-space">        </span>liquidity</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}));</p>
+<p class="p1"><span class="Apple-converted-space">      </span>depthData.sort((a, b) =&gt; a.price - b.price);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>return depthData;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>window.loadCharts = async function() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const mint = document.getElementById("mintInput").value.trim();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!mint) return alert("请输入 token mint");</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>let data = await getAggregatedDepth(mint);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>// 价格范围过滤</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const minP = parseFloat(document.getElementById("minPrice").value);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const maxP = parseFloat(document.getElementById("maxPrice").value);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!isNaN(minP)) data = data.filter(d =&gt; d.price &gt;= minP);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!isNaN(maxP)) data = data.filter(d =&gt; d.price &lt;= maxP);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>// 最小流动性过滤</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const minL = parseFloat(document.getElementById("minLiquidity").value);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!isNaN(minL)) data = data.filter(d =&gt; d.liquidity &gt;= minL);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (data.length === 0) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>alert("没有符合条件的 bin 数据");</p>
+<p class="p1"><span class="Apple-converted-space">        </span>return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>// 累积深度</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let cumulative = 0;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const prices = [];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const cumDepth = [];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const liquidity = [];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>data.forEach(d =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>cumulative += d.liquidity;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>prices.push(d.price);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>cumDepth.push(cumulative);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>liquidity.push(d.liquidity);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>// 图1：累积深度曲线</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const depthChart = echarts.init(document.getElementById('depthChart'));</p>
+<p class="p1"><span class="Apple-converted-space">      </span>depthChart.setOption({</p>
+<p class="p1"><span class="Apple-converted-space">        </span>title: { text: '累积深度曲线' },</p>
+<p class="p1"><span class="Apple-converted-space">        </span>tooltip: { trigger: 'axis' },</p>
+<p class="p1"><span class="Apple-converted-space">        </span>dataZoom: [{ type: 'inside' }, { type: 'slider' }],</p>
+<p class="p1"><span class="Apple-converted-space">        </span>xAxis: { type: 'category', data: prices, name: '价格' },</p>
+<p class="p1"><span class="Apple-converted-space">        </span>yAxis: { type: 'value', name: '累积流动性' },</p>
+<p class="p1"><span class="Apple-converted-space">        </span>series: [{ data: cumDepth, type: 'line', smooth: true }]</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>// 图2：流动性直方图</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const histChart = echarts.init(document.getElementById('histChart'));</p>
+<p class="p1"><span class="Apple-converted-space">      </span>histChart.setOption({</p>
+<p class="p1"><span class="Apple-converted-space">        </span>title: { text: '价格区间流动性直方图' },</p>
+<p class="p1"><span class="Apple-converted-space">        </span>tooltip: { trigger: 'axis' },</p>
+<p class="p1"><span class="Apple-converted-space">        </span>dataZoom: [{ type: 'inside' }, { type: 'slider' }],</p>
+<p class="p1"><span class="Apple-converted-space">        </span>xAxis: { type: 'category', data: prices, name: '价格' },</p>
+<p class="p1"><span class="Apple-converted-space">        </span>yAxis: { type: 'value', name: '单区间流动性' },</p>
+<p class="p1"><span class="Apple-converted-space">        </span>series: [{ data: liquidity, type: 'bar' }]</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/script&gt;</p>
+<p class="p1">&lt;/body&gt;</p>
+<p class="p1">&lt;/html&gt;</p>
+</body>
+</html>
